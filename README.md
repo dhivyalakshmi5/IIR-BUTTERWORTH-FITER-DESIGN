@@ -11,78 +11,107 @@ PC installed with SCILAB.
 ```
 clc;
 clear;
+close;
 
-// Sampling frequency
-Fs = 5000;           // Hz
+// ---- Fixed Specifications ----
+wp = %pi/4;      // Passband frequency (rad/sample)
+ws = %pi/2;      // Stopband frequency (rad/sample)
+alphap = 1;      // Passband attenuation (dB)
+alphas = 15;     // Stopband attenuation (dB)
+T = 1;           // Sampling time
 
-// Cutoff frequency
-fc = 1500;           // Hz (changed)
-Wn = 2 * fc / Fs;    // Normalized (0 to 1)
+// ---- Prewarping ----
+omegap = (2/T)*tan(wp/2);
+omegas = (2/T)*tan(ws/2);
 
-// Butterworth LPF (order 2) — new coefficients
-b = [0.2452  0.4904  0.2452];   // Numerator
-a = [1.0000  -0.8683  0.2569];  // Denominator
+// ---- Filter Order ----
+N = log10((10^(0.1*alphas)-1)/(10^(0.1*alphap)-1)) / (2*log10(omegas/omegap));
+N = ceil(N);
 
-// Frequency response (N = 512 points)
-N = 512;
-[H, f_norm] = frmag(b, a, N);
+// ---- Cutoff Frequency ----
+omegac = omegap / ((10^(0.1*alphap)-1)^(1/(2*N)));
 
-// Convert normalized freq to Hz
-f = f_norm * Fs;
+// ---- Analog Filter ----
+hs = analpf(N, 'butt', [0,0], omegac);
 
-// Plot magnitude response in dB
-clf();
-plot(f, 20 * log10(H + %eps));
-xlabel("Frequency (Hz)");
-ylabel("Magnitude (dB)");
-title("Butterworth Low Pass Filter (Order 2) — fc = 1500 Hz");
-xgrid();
+// ---- Bilinear Transformation ----
+z = poly(0, 'z');
+Hz = horner(hs, (2/T)*((z-1)/(z+1)));
+
+// ---- Frequency Response ----
+HW = frmag(Hz, 512);
+w = 0:%pi/511:%pi;
+
+// ---- Plot ----
+plot(w/%pi, abs(HW));
+xlabel('Normalized Frequency (×π rad/sample)');
+ylabel('Magnitude');
+title('Butterworth IIR LPF Frequency Response');
+
+// ---- Display Key Results ----
+disp("Filter Order N = "), disp(N);
+disp("Cutoff Frequency omegac = "), disp(omegac);
+disp("Digital Transfer Function H(z) = "), disp(Hz);
 ```
+
+
 ## PROGRAM (HPF): 
 ```
 clc;
 clear;
+close;
 
-// Sampling frequency in Hz
-Fs = 8000;
+// ---- Specifications ----
+wp = %pi/2;      // Passband (HIGH)
+ws = %pi/4;      // Stopband (LOW)
+alphap = 1;      // Passband attenuation (dB)
+alphas = 15;     // Stopband attenuation (dB)
+T = 1;
 
-// Cutoff frequency in Hz
-fc = 2000;
+// ---- Prewarping ----
+omegap = (2/T)*tan(wp/2);
+omegas = (2/T)*tan(ws/2);
 
-// Precomputed 2nd order Butterworth HPF coefficients
-// These coefficients correspond to a 2nd order Butterworth HPF with cutoff ~ 2000 Hz
-b = [0.6389 -1.2777 0.6389];    // Numerator
-a = [1.0000 -0.5095 0.1825];    // Denominator
+// ---- Filter Order ----
+N = log10((10^(0.1*alphas)-1)/(10^(0.1*alphap)-1)) / (2*log10(omegap/omegas));
+N = ceil(N);
 
-// Number of frequency points for response
-N = 512;
+// ---- Cutoff Frequency ----
+omegac = omegap / ((10^(0.1*alphap)-1)^(1/(2*N)));
 
-// Calculate frequency response magnitude and normalized frequency vector
-[H, f_norm] = frmag(b, a, N);
+// ---- Analog LPF Prototype ----
+hs = analpf(N, 'butt', [0,0], 1);   // normalized LPF
 
-// Convert normalized frequency (0 to 0.5) to Hz (0 to Fs/2)
-f = f_norm * Fs;
+// ---- LPF → HPF Transformation (IMPORTANT FIX) ----
+s = poly(0, 's');
+hs_hp = horner(hs, omegac ./ s);   // s → wc/s
 
-// Plot magnitude response in dB
-clf();
-plot(f, 20 * log10(H), 'LineWidth', 2);
-xlabel("Frequency (Hz)");
-ylabel("Magnitude (dB)");
-title("Butterworth High Pass Filter (Order 2) Frequency Response");
-xgrid();
+// ---- Bilinear Transformation ----
+z = poly(0, 'z');
+Hz = horner(hs_hp, (2/T)*((z-1)/(z+1)));
 
-// Optional: draw vertical line at cutoff frequency (fc)
-xset("color", 2); // red color
-plot([fc fc], [-80 5], '--');
-xset("color", 1); // reset to black
+// ---- Frequency Response ----
+HW = frmag(Hz, 512);
+w = 0:%pi/511:%pi;
+
+// ---- Plot ----
+plot(w/%pi, abs(HW));
+xlabel('Normalized Frequency (×π rad/sample)');
+ylabel('Magnitude');
+title('Butterworth IIR HPF Frequency Response');
+
+// ---- Display ----
+disp("Filter Order N = "), disp(N);
+disp("Cutoff Frequency omegac = "), disp(omegac);
+disp("H(z) = "), disp(Hz);
+
 ```
 
 ## OUTPUT (LPF) : 
-<img width="1024" height="536" alt="Screenshot 2026-03-10 142636" src="https://github.com/user-attachments/assets/dc4c6089-e6db-4a2e-a020-2aacf7c3ad73" />
-
+<img width="763" height="323" alt="image" src="https://github.com/user-attachments/assets/344667fe-b937-41da-a6fb-7edcb2346f02" />
 
 ## OUTPUT (HPF) : 
-<img width="1051" height="478" alt="Screenshot 2026-03-10 142659" src="https://github.com/user-attachments/assets/5979c5aa-44b6-4433-8631-249798212932" />
+<img width="759" height="322" alt="image" src="https://github.com/user-attachments/assets/6307607d-13c6-44ea-9fd9-b4d48817626e" />
 
 ## RESULT: 
-A 2nd-order IIR Butterworth low-pass filter was designed with cutoff frequency 1500 Hz and sampling frequency 5000 Hz. The frequency response shows flat passband and sharp attenuation in the stopband.
+Thus, the IIR Butterworth Low Pass Filter (LPF) and High Pass Filter (HPF) were plotted and output was verified.
