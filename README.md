@@ -243,6 +243,7 @@ disp("Transfer Function H(z) = "), disp(Hz);
 
 ## OUTPUT (HPF) : 
 <img width="759" height="322" alt="image" src="https://github.com/user-attachments/assets/6307607d-13c6-44ea-9fd9-b4d48817626e" />
+
 ## OUTPUT (BPF) : 
 
 ![WhatsApp Image 2026-03-28 at 11 23 26 AM](https://github.com/user-attachments/assets/bcef2c2a-df2a-4b34-99f4-e66969d3f0f7)
